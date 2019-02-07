@@ -5,6 +5,7 @@ import pandas as pd
 import nltk
 nltk.download(['punkt', 'wordnet','stopwords','averaged_perceptron_tagger'])
 from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.corpus import wordnet
 import string
@@ -23,11 +24,13 @@ from sqlalchemy import create_engine
 
 app = Flask(__name__)
 
-from nltk.corpus import stopwords
-stop_words = stopwords.words("english")
-lemmatizer = WordNetLemmatizer()
+
 
 def get_wordnet_pos(treebank_tag):
+    '''
+    Function that map treebank tags to WordNet part of speech names
+    '''
+    
     if treebank_tag.startswith('J'):
         return wordnet.ADJ
     elif treebank_tag.startswith('V'):
@@ -39,12 +42,14 @@ def get_wordnet_pos(treebank_tag):
 
 
 def tokenize(text):
+    '''
+    the tokenize function would process the text data
+    '''
     text = re.sub(r"[^a-zA-Z]", " ", text.lower())
-   
     tokens = word_tokenize(text)
-    
+    stop_words = stopwords.words("english")
+    lemmatizer = WordNetLemmatizer()
     tokens = [lemmatizer.lemmatize(word,get_wordnet_pos(pos)) for word,pos in nltk.pos_tag(tokens) if word not in stop_words]
-    
     tokens =[PorterStemmer().stem(word) for word in tokens]
     return tokens
 
@@ -61,19 +66,18 @@ model = joblib.load("../models/classifier.pkl")
 @app.route('/index')
 def index():
     
-    # extract data needed for visuals
-    # TODO: Below is an example - modify to extract data for your own visuals
+    # extract data needed for visual 1
     genre_counts_related = df[df['related']==1].groupby('genre').count()['message']
     genre_names_related = list(genre_counts_related.index)
     
     genre_counts_unrelated = df[df['related']==0].groupby('genre').count()['message']
     genre_names_unrelated = list( genre_counts_unrelated.index)
     
+    # extract data needed for visual 2
     categories_count=df.iloc[:,5:].apply(sum)
     categories_name=list(df.columns[5:])
     
     # create visuals
-    # TODO: Below is an example - modify to create your own visuals
     graphs = [
         {
             'data': [
