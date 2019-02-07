@@ -5,6 +5,7 @@ import pandas as pd
 import nltk
 nltk.download(['punkt', 'wordnet','stopwords','averaged_perceptron_tagger'])
 from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.corpus import wordnet
 import string
@@ -30,6 +31,11 @@ from workspace_utils import active_session
 
 
 def load_data(database_filepath):
+    '''
+    Function that load clean dataset from database
+    Arg:
+    database_filepath: file path of database
+    '''
     engine = create_engine('sqlite:///' + database_filepath)
     df = pd.read_sql_table('disaster message',con=engine)
     X = df.message.values
@@ -37,11 +43,12 @@ def load_data(database_filepath):
     category_names=df.columns[4:]
     return X,Y,category_names
 
-from nltk.corpus import stopwords
-stop_words = stopwords.words("english")
-lemmatizer = WordNetLemmatizer()
 
 def get_wordnet_pos(treebank_tag):
+    '''
+    Function that map treebank tags to WordNet part of speech names
+    '''
+    
     if treebank_tag.startswith('J'):
         return wordnet.ADJ
     elif treebank_tag.startswith('V'):
@@ -51,12 +58,19 @@ def get_wordnet_pos(treebank_tag):
     else:
         return wordnet.NOUN
 
-# normalize case and remove punctuation，numbers
+
 def tokenize(text):
+    '''
+    the tokenize function would process the text data
+    '''
+ 
+    # normalize case and remove punctuation，numbers
     text = re.sub(r"[^a-zA-Z]", " ", text.lower())
     # tokenize text
     tokens = word_tokenize(text)
     # lemmatize and remove stop words    
+    stop_words = stopwords.words("english")
+    lemmatizer = WordNetLemmatizer()
     tokens = [lemmatizer.lemmatize(word,get_wordnet_pos(pos)) for word,pos in nltk.pos_tag(tokens) if word not in stop_words]
     # Reduce words to their stems
     tokens =[PorterStemmer().stem(word) for word in tokens]
@@ -64,6 +78,9 @@ def tokenize(text):
 
 
 def build_model():
+    '''
+    function that build the machine learning pipeline
+    '''
     pipeline = Pipeline([
         ('vect', CountVectorizer(tokenizer=tokenize)),
         ('tfidf', TfidfTransformer()),
@@ -84,6 +101,14 @@ def build_model():
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
+    '''
+    the function would report the f1 score, precision and recall for each output category of the dataset
+    Arg:
+    model : result of the GridSearchCV
+    X_test: part of predictors that didn't attend the trainning process
+    Y_test: part of target variables that didn't attend the trainning process
+    category_names: name of target variables
+    '''
     Y_pred = model.predict(X_test)
     for i in range(35):
         print ('classification report of {}:'.format(category_names[i]))
@@ -91,6 +116,13 @@ def evaluate_model(model, X_test, Y_test, category_names):
     
 
 def save_model(model, model_filepath):
+    '''
+    function that save the final model
+    Arg:
+    model : result of the GridSearchCV
+    model_filepath: file path of final model
+    '''
+    
     with open(model_filepath, 'wb') as f:
         pickle.dump(model, f)
 
