@@ -17,6 +17,15 @@ def load_data(messages_filepath, categories_filepath):
 
 
 def clean_data(df):
+    '''
+    Function that prepare the dataset for modeling, including transform target variables, drop duplicate and remove useless varaibles
+    
+    Arg:
+    df : the merged dataset
+    '''
+    
+    # transform original categories column,from single column that has values like'related-1;request-0;offer-0;aid_related-0;
+    # ...' to several columns with names as related, request, offer, aid_related and so on, values as 1 or 0.
     categories = df['categories'].str.split(';',expand=True)
     row = categories.iloc[0,:]
     category_colnames = row.apply(lambda x: x[:-2])
@@ -26,15 +35,33 @@ def clean_data(df):
         categories[column] = categories[column].apply(lambda x: x[-1])
         categories[column] = categories[column].astype(int)
     
+    # drop original categories column
     df=df.drop(['categories'],axis=1)
+    
+    #merga original messages with new categories column
     df = pd.concat([df, categories], axis=1)
+    
+    #drop duplicate messages
     df=df.drop_duplicates()
+    
+    #since those messages with 2 in related all have 0 in other categories, they are actullay unrelated messages, so I change 
+    # the value from 2 to 0.
     df.loc[df['related']==2,'related']=0
+    
+    # since all values in child_alone category is 0, it's meaningless to predict this category, so I remove this category
     df=df.drop(['child_alone'],axis=1)
+    
     return df
 
 
 def save_data(df, database_filename):
+    '''
+    Function that save the clean dataset into an sqlite database
+    
+    Arg:
+    df : the cleaned dataset
+    database_filename : name of sqlite database
+    '''
     engine = create_engine('sqlite:///' + database_filename)
     df.to_sql('disaster message', engine, index=False)
 
